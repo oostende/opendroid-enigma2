@@ -112,7 +112,7 @@ class FlashOnline(Screen):
 				os.mkdir(imagePath)
 			except:
 				pass
-		
+
 		if os.path.exists(flashPath):
 			try:
 				os.system('rm -rf ' + flashPath)
@@ -250,17 +250,17 @@ class doFlashImage(Screen):
 				os.remove(self.imagePath + "/" + self.filename)
 			self.imagelist.remove(self.filename)
 			self["imageList"].l.setList(self.imagelist)
-		
+
 	def box(self):
 		box = getBoxType()
 		machinename = getMachineName()
 		if box in ('uniboxhd1', 'uniboxhd2', 'uniboxhd3'):
 			box = "ventonhdx"
-		elif box == 'odinm6':
+		elif box == "odinm6":
 			box = getMachineName().lower()
-		elif box == "inihde" and machinename.lower() == "xpeedlx":
-			box = "xpeedlx"
-		elif box in ('xpeedlx1', 'xpeedlx2'):
+		elif box == "xpeedlx3":
+			box = "xpeedlx3"
+		elif box == "xpeedlx1" or box == "xpeedlx2":
 			box = "xpeedlx"
 		elif box == "inihde" and machinename.lower() == "hd-1000":
 			box = "sezam-1000hd"
@@ -270,7 +270,7 @@ class doFlashImage(Screen):
 			box = "miraclebox-twin"
 		elif box == "xp1000" and machinename.lower() == "sf8 hd":
 			box = "sf8"
-		elif box.startswith('et') and not box in ('et8000', 'et8500', 'et8500s', 'et10000'):
+		elif box.startswith('et') and not box in ('et8000', 'et8500', 'et10000'):
 			box = box[0:3] + 'x00'
 		elif box == "odinm9":
 			box = 'maram9'
@@ -278,67 +278,34 @@ class doFlashImage(Screen):
 			box = 'dm520'
 		return box
 
-	def getSel(self):
-		self.sel = self["imageList"].l.getCurrentSelection()
-		if self.sel == None:
+	def green(self, ret = None):
+		sel = self["imageList"].l.getCurrentSelection()
+		if sel == None:
 			print"Nothing to select !!"
-			return False
-		self.filename = self.imagePath + "/" + self.sel
-		return True
-
-	def greenCB(self, ret = None):
-		if self.Online:
-			if ret:
-				from Plugins.SystemPlugins.SoftwareManager.BackupRestore import BackupScreen
-				self.session.openWithCallback(self.startInstallOnline,BackupScreen, runBackup = True)
-			else:
-				self.startInstallOnline()
-		else:
-			self.startInstallLocal(ret)
-
-	def green(self):
-		if self.getSel():
-			self.hide()
-			self.session.openWithCallback(self.greenCB, MessageBox, _("Do you want to backup your settings now?"), default=False)
-
-	def startInstallOnline(self, ret = None):
+			return
+		file_name = self.imagePath + "/" + sel
+		self.filename = file_name
+		self.sel = sel
 		box = self.box()
-		url = self.feedurl + "/" + box + "/" + self.sel
-		print "[Flash Online] Download image: >%s<" % url
-		if self.newfeed:
-			self.feedurl = self.newfeed[0][:-1]
-			url = self.feedurl + "/" + box + "/" + self.sel
-			authinfo = urllib2.HTTPPasswordMgrWithDefaultRealm()
-			authinfo.add_password(None, self.feedurl, self.newfeed[1][:-1], self.newfeed[2][:-1])
-			handler = urllib2.HTTPBasicAuthHandler(authinfo)
-			myopener = urllib2.build_opener(handler)
-			opened = urllib2.install_opener(myopener)
+		self.hide()
+		if self.Online:
+			if self.imagesCounter == 0:
+				url = self.feedurl + "/" + sel
+			else:
+				url = self.feedurl + "/" + box + "/" + sel
+			#print "URL:", url
 			u = urllib2.urlopen(url)
-			total_size = int(u.info().getheaders("Content-Length")[0])
-			downloaded = 0
-			CHUNK = 256 * 1024
-			with open(self.filename, 'wb') as fp:
-				while True:
-					chunk = u.read(CHUNK)
-					downloaded += len(chunk)
-					print "Downloading: %s Bytes of %s" % (downloaded, total_size)
-					if not chunk: break
-					fp.write(chunk)
-			self.ImageDownloadCB(False)
+			f = open(file_name, 'wb')
+			meta = u.info()
+			file_size = int(meta.getheaders("Content-Length")[0])
+			print "Downloading: %s Bytes: %s" % (sel, file_size)
+			job = ImageDownloadJob(url, file_name, sel)
+			job.afterEvent = "close"
+			job_manager.AddJob(job)
+			job_manager.failed_jobs = []
+			self.session.openWithCallback(self.ImageDownloadCB, JobView, job, backgroundable = False, afterEventChangeable = False)
 		else:
-			try:
-				u = urllib2.urlopen(url)
-				f = open(self.filename, 'wb')
-				f.close()
-				job = ImageDownloadJob(url, self.filename, self.sel)
-				job.afterEvent = "close"
-				job_manager.AddJob(job)
-				job_manager.failed_jobs = []
-				self.session.openWithCallback(self.ImageDownloadCB, JobView, job, backgroundable = False, afterEventChangeable = False)
-			except urllib2.URLError as e:
-				print "[Flash Online] Download failed !!\n%s" % e
-				self.session.openWithCallback(self.ImageDownloadCB, MessageBox, _("Download Failed !!" + "\n%s" % e), type = MessageBox.TYPE_ERROR)
-				self.close()
+			self.session.openWithCallback(self.startInstallLocal, MessageBox, _("Do you want to backup your settings now?"), default=False)
 
 	def ImageDownloadCB(self, ret):
 		if ret:
@@ -509,7 +476,7 @@ class doFlashImage(Screen):
 			os.mkdir(flashTmp)
 		kernel = True
 		rootfs = True
-		
+
 		for path, subdirs, files in os.walk(tmpPath):
 			for name in files:
 				if name.find('kernel') > -1 and name.endswith('.bin') and kernel:
@@ -532,27 +499,10 @@ class doFlashImage(Screen):
 					dest = flashTmp + '/e2jffs2.img'
 					shutil.copyfile(binfile, dest)
 					rootfs = False
-					
+
 	def yellow(self):
 		if not self.Online:
-			self.session.openWithCallback(self.DeviceBrowserClosed, DeviceBrowser, None, matchingPattern="^.*\.(zip|bin|jffs2|img)", showDirectories=True, showMountpoints=True, inhibitMounts=["/autofs/sr0/"])
-		elif self.getSel():
-			self.greenCB(True)
-
-	def startInstallLocal(self, ret = None):
-		if ret:
-			from Plugins.SystemPlugins.SoftwareManager.BackupRestore import BackupScreen
-			self.flashWithPostFlashActionMode = 'local'
-			self.session.openWithCallback(self.flashWithPostFlashAction,BackupScreen, runBackup = True)
-		else:
-			self.flashWithPostFlashActionMode = 'local'
-			self.flashWithPostFlashAction()
-
-	def startInstallLocalCB(self, ret = None):
-		if self.sel == str(flashTmp):
-			self.Start_Flashing()
-		else:
-			self.unzip_image(self.filename, flashPath)
+			self.session.openWithCallback(self.DeviceBrowserClosed, DeviceBrowser, None, matchingPattern="^.*\.(zip|bin|jffs2)", showDirectories=True, showMountpoints=True, inhibitMounts=["/autofs/sr0/"])
 
 	def DeviceBrowserClosed(self, path, filename, binorzip):
 		if path:
@@ -574,7 +524,7 @@ class doFlashImage(Screen):
 				self.unzip_image(strPath + '/' + filename, flashPath)
 			else:
 				self.layoutFinished()
-	
+
 		else:
 			self.imagePath = imagePath
 
@@ -593,8 +543,7 @@ class doFlashImage(Screen):
 			try:
 				response = urllib2.urlopen(req)
 			except urllib2.URLError as e:
-				print "URL ERROR: %s\n%s" % (e,url)
-				self["imageList"].l.setList(self.imagelist)
+				print "URL ERROR: %s" % e
 				return
 
 			try:
@@ -640,7 +589,7 @@ class doFlashImage(Screen):
 
 class ImageDownloadJob(Job):
 	def __init__(self, url, filename, file):
-		Job.__init__(self, _("Downloading %s") %file)
+		Job.__init__(self, _("Downloading %s" %file))
 		ImageDownloadTask(self, url, filename)
 
 class DownloaderPostcondition(Condition):
@@ -677,9 +626,9 @@ class ImageDownloadTask(Task):
 		self.aborted = True
 
 	def download_progress(self, recvbytes, totalbytes):
-		if ( recvbytes - self.last_recvbytes  ) > 100000: # anti-flicker
+		if ( recvbytes - self.last_recvbytes  ) > 10000: # anti-flicker
 			self.progress = int(100*(float(recvbytes)/float(totalbytes)))
-			self.name = _("Downloading") + ' ' + _("%d of %d kBytes") % (recvbytes/1024, totalbytes/1024)
+			self.name = _("Downloading") + ' ' + "%d of %d kBytes" % (recvbytes/1024, totalbytes/1024)
 			self.last_recvbytes = recvbytes
 
 	def download_failed(self, failure_instance=None, error_message=""):
