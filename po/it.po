@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: enigma2\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2013-05-19 23:44+0100\n"
-"PO-Revision-Date: 2017-03-09 21:34+0100\n"
+"PO-Revision-Date: 2017-03-09 22:03+0100\n"
 "Last-Translator: Opendroid-Team <opendroid2013@gmail.com>\n"
 "Language-Team: Gimsy & Formiano\n"
 "Language: it\n"
@@ -14764,6 +14764,86 @@ msgstr "Seleziona Multiboot"
 
 msgid "MultiBoot Selector"
 msgstr "Selettore MultiBoot"
+
+msgid "no image found"
+msgstr "Nessuna immagine trovata"
+
+msgid ""
+"Your box needs Bootloaderversion(s)\n"
+"\n"
+"%s\n"
+"\n"
+"to make compatible with Bootoptions!"
+msgstr ""
+"Il tuo Box necessità del Bootloader\n"
+"\n"
+"%s\n"
+"\n"
+"per rendere compatibile con bootoptions"
+
+msgid "File not found - rename failed!"
+msgstr "File non trovato - Impossibile rinominare!"
+
+msgid "Name already exists - rename failed!"
+msgstr "Nome già esistente - Rinomina fallito!"
+
+msgid "2160p60 without PiP (Standard)"
+msgstr "2160p60 senza PiP (Standard)"
+
+msgid "2160p50 with PiP (Experimental)"
+msgstr "2160p50 con PiP (sperimentale)"
+
+msgid " (unknown mode)"
+msgstr " (Modalità sconosciuta)"
+
+msgid "Unable to read image number"
+msgstr "Impossibile leggere il numero di immagine"
+
+msgid "Current Bootsettings: %s (%s)%s"
+msgstr "Bootsettings correnti: %s (%s)%s"
+
+msgid "Select Bootoption: %s"
+msgstr "Seleziona Bootoption: %s"
+
+msgid "Select Image: %s"
+msgstr "Seleziona Immagine %s"
+
+msgid "Select Bootoption: not supported - see info"
+msgstr "Selezionare l'opzione di avvio: non supportato - vedere informazioni"
+
+msgid "File '/boot/%s' copy to '/boot/STARTUP' failed!"
+msgstr "Datei '/boot/%s' copia '/boot/STARTUP' fallito!"
+
+msgid "Next boot will start from Image 1."
+msgstr "Avvio successivo partirà da Immagine 1."
+
+msgid "Can not repair file %s"
+msgstr "Non è possibile riparare il file"
+
+msgid "Caution, next boot is starts with these settings!"
+msgstr "Attenzione, il prossimo avvio inizia con queste impostazioni!"
+
+msgid "Alternative Image 1 partition for boot repair not found."
+msgstr ""
+"Immagine Alternativa 1 partizione per la riparazione di avvio non trovata."
+
+msgid "Wrong Bootsettings detected!"
+msgstr "Rilevati Bootsettings errati!"
+
+msgid "Do you want to reboot now?"
+msgstr "Vuoi riavviare ora?"
+
+msgid "Can not write file %s"
+msgstr "Impossibile scrivere il file %s"
+
+msgid "Write error!"
+msgstr "Errore di scrittura!"
+
+msgid "Error in file %s"
+msgstr "Errore nel file %s"
+
+msgid "Command line error!"
+msgstr "Errore di linea di comando!"
 
 msgid "SCPC optimized search range"
 msgstr "SCPC area di ricerca ottimizzata"
