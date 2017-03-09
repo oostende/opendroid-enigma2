@@ -6,6 +6,8 @@ from Components.MenuList import MenuList
 from Components.FileList import FileList
 from Components.Task import Task, Job, job_manager, Condition
 from Components.Sources.StaticText import StaticText
+from Components.SystemInfo import SystemInfo
+from Components import Harddisk
 from Screens.Console import Console
 from Screens.MessageBox import MessageBox
 from Screens.ChoiceBox import ChoiceBox
@@ -19,8 +21,10 @@ from enigma import fbClass
 import urllib2
 import os
 import shutil
-from boxbranding import getImageDistro, getMachineBrand, getMachineName, getBoxType, getMachineKernelFile, getMachineRootFile
-distro = getImageDistro()
+import math
+from boxbranding import getBoxType,  getImageDistro, getMachineName, getMachineBrand, getImageVersion, getMachineKernelFile, getMachineRootFile
+distro =  getImageDistro()
+ImageVersion = getImageVersion()
 ROOTFSBIN = getMachineRootFile()
 KERNELBIN = getMachineKernelFile()
 
@@ -63,14 +67,19 @@ class FlashOnline(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		self.session = session
+		self.selection = 0
 		self.devrootfs = "/dev/mmcblk0p3"
-		self.List = list
+		self.multi = 1
+		self.list = self.list_files("/boot")
 
 		Screen.setTitle(self, _("Flash On the Fly"))
-		self["key_yellow"] = Button("Local")
-		self["key_green"] = Button("Online")
+		if SystemInfo["HaveMultiBoot"]:
+			self["key_blue"] = Button(_("Multiboot Select"))
+		else:
+			self["key_blue"] = Button(_(" "))
+		self["key_green"] = Button(_("Online"))
 		self["key_red"] = Button(_("Exit"))
-		self["key_blue"] = Button("")
+		self["key_yellow"] = Button(_("Local"))
 		self["info-local"] = Label(_("Local = Flash a image from local path /hdd/images"))
 		self["info-online"] = Label(_("Online = Download a image and flash it"))
 
@@ -82,6 +91,10 @@ class FlashOnline(Screen):
 			"red": self.quit,
 			"cancel": self.quit,
 		}, -2)
+		if SystemInfo["HaveMultiBoot"]:
+			self.multi = self.read_startup("/boot/" + self.list[self.selection]).split(".",1)[1].split(" ",1)[0]
+			self.multi = self.multi[-1:]
+			print "[Flash Online] MULTI:",self.multi
 
 	def check_hdd(self):
 		if not os.path.exists("/media/hdd"):
@@ -99,6 +112,7 @@ class FlashOnline(Screen):
 				os.mkdir(imagePath)
 			except:
 				pass
+
 		if os.path.exists(flashPath):
 			try:
 				os.system('rm -rf ' + flashPath)
@@ -112,23 +126,56 @@ class FlashOnline(Screen):
 
 	def quit(self):
 		self.close()
-	def blue(self):
+
+	def yellow(self):
 		if self.check_hdd():
-			self.session.open(doFlashImage, online = False, list=self.list[self.selection], devrootfs=self.devrootfs)
+			self.session.open(doFlashImage, online = False, list=self.list[self.selection], multi=self.multi, devrootfs=self.devrootfs)
 		else:
 			self.close()
 
 	def green(self):
 		if self.check_hdd():
-			self.session.open(doFlashImage, online = True)
+			self.session.open(doFlashImage, online = True, list=self.list[self.selection], multi=self.multi, devrootfs=self.devrootfs)
 		else:
 			self.close()
 
-	def yellow(self):
-		if self.check_hdd():
-			self.session.open(doFlashImage, online = False)
+	def blue(self):
+		if SystemInfo["HaveMultiBoot"]:
+			self.selection = self.selection + 1
+			if self.selection == len(self.list):
+				self.selection = 0
+			self["key_blue"].setText(_(self.list[self.selection]))
+			self.multi = self.read_startup("/boot/" + self.list[self.selection]).split(".",1)[1].split(" ",1)[0]
+			self.multi = self.multi[-1:]
+			print "[Flash Online] MULTI:",self.multi
+			cmdline = self.read_startup("/boot/" + self.list[self.selection]).split("=",1)[1].split(" ",1)[0]
+			self.devrootfs = cmdline
+			print "[Flash Online] MULTI rootfs ", self.devrootfs
+
+	def read_startup(self, FILE):
+		file = FILE
+		with open(file, 'r') as myfile:
+			data=myfile.read().replace('\n', '')
+		myfile.close()
+		return data
+
+	def list_files(self, PATH):
+		files = []
+		if SystemInfo["HaveMultiBoot"]:
+			path = PATH
+			for name in os.listdir(path):
+				if name != 'bootname' and os.path.isfile(os.path.join(path, name)):
+					try:
+						cmdline = self.read_startup("/boot/" + name).split("=",1)[1].split(" ",1)[0]
+					except IndexError:
+						continue
+					cmdline_startup = self.read_startup("/boot/STARTUP").split("=",1)[1].split(" ",1)[0]
+					if (cmdline != cmdline_startup) and (name != "STARTUP"):
+						files.append(name)
+			files.insert(0,"STARTUP")
 		else:
-			self.close()
+			files = "None"
+		return files
 
 class doFlashImage(Screen):
 	skin = """
@@ -144,7 +191,7 @@ class doFlashImage(Screen):
 		<widget name="imageList" position="10,10" zPosition="1" size="680,450" font="Regular;20" scrollbarMode="showOnDemand" transparent="1" />
 	</screen>"""
 
-	def __init__(self, session, online, list=None, devrootfs=None ):
+	def __init__(self, session, online, list=None, multi=None, devrootfs=None ):
 		Screen.__init__(self, session)
 		self.session = session
 
@@ -159,6 +206,7 @@ class doFlashImage(Screen):
 		self.simulate = False
 		self.Online = online
 		self.List = list
+		self.multi=multi
 		self.devrootfs=devrootfs
 		self.imagePath = imagePath
 		self.feedurl = images[self.imagesCounter][1]
@@ -176,11 +224,12 @@ class doFlashImage(Screen):
 
 
 	def quit(self):
+		if self.simulate or not self.List == "STARTUP":
+			fbClass.getInstance().unlock()
 		self.close()
 
 	def blue(self):
 		if self.Online:
-
 			if self.imagesCounter <= len(images) - 2:
 				self.imagesCounter = self.imagesCounter + 1
 			else:
@@ -229,22 +278,22 @@ class doFlashImage(Screen):
 			box = 'dm520'
 		return box
 
-	def green(self):
+	def green(self, ret = None):
 		sel = self["imageList"].l.getCurrentSelection()
 		if sel == None:
 			print"Nothing to select !!"
 			return
 		file_name = self.imagePath + "/" + sel
 		self.filename = file_name
+		self.sel = sel
 		box = self.box()
-		brand = getMachineBrand()
 		self.hide()
 		if self.Online:
 			if self.imagesCounter == 0:
-				url = self.feedurl + "/" + brand + "/" + box + "/" + sel
+				url = self.feedurl + "/" + sel
 			else:
-				url = self.feedurl + "/" + brand + "/" + box + "/" + sel
-			print "URL:", url
+				url = self.feedurl + "/" + box + "/" + sel
+			#print "URL:", url
 			u = urllib2.urlopen(url)
 			f = open(file_name, 'wb')
 			meta = u.info()
@@ -256,7 +305,10 @@ class doFlashImage(Screen):
 			job_manager.failed_jobs = []
 			self.session.openWithCallback(self.ImageDownloadCB, JobView, job, backgroundable = False, afterEventChangeable = False)
 		else:
-			self.session.openWithCallback(self.startInstallLocal, MessageBox, _("Do you want to backup your settings now?"), default=False)
+			if sel == str(flashTmp):
+				self.Start_Flashing()
+			else:
+				self.unzip_image(self.filename, flashPath)
 
 	def ImageDownloadCB(self, ret):
 		if ret:
@@ -266,96 +318,13 @@ class doFlashImage(Screen):
 			self.close()
 			return
 		if len(job_manager.failed_jobs) == 0:
-			self.flashWithPostFlashActionMode = 'online'
-			self.flashWithPostFlashAction()
+			self.session.openWithCallback(self.askUnzipCB, MessageBox, _("The image is downloaded. Do you want to flash now?"), MessageBox.TYPE_YESNO)
 		else:
 			self.session.open(MessageBox, _("Download Failed !!"), type = MessageBox.TYPE_ERROR)
 
-	def flashWithPostFlashAction(self, ret = True):
+	def askUnzipCB(self, ret):
 		if ret:
-			print "flashWithPostFlashAction"
-			title =_("Please select what to do after flashing the image:\n(In addition, if it exists, a local script will be executed as well at /media/hdd/images/config/myrestore.sh)")
-			list = ((_("Flash and start installation wizard"), "wizard"),
-			(_("Flash and restore settings and no plugins"), "restoresettingsnoplugin"),
-			(_("Flash and restore settings and selected plugins (ask user)"), "restoresettings"),
-			(_("Flash and restore settings and all saved plugins"), "restoresettingsandallplugins"),
-			(_("Do not flash image"), "abort"))
-			self.session.openWithCallback(self.postFlashActionCallback, ChoiceBox,title=title,list=list,selection=self.SelectPrevPostFashAction())
-		else:
-			self.show()
-
-	def SelectPrevPostFashAction(self):
-		index = 0
-		Settings = False
-		AllPlugins = False
-		noPlugins = False
-		
-		if os.path.exists('/media/hdd/images/config/settings'):
-			Settings = True
-		if os.path.exists('/media/hdd/images/config/plugins'):
-			AllPlugins = True
-		if os.path.exists('/media/hdd/images/config/noplugins'):
-			noPlugins = True
-
-		if 	Settings and noPlugins:
-			index = 1
-		elif Settings and not AllPlugins and not noPlugins:
-			index = 2
-		elif Settings and AllPlugins:
-			index = 3
-
-		return index
-
-	def postFlashActionCallback(self, answer):
-		print "postFlashActionCallback"
-		restoreSettings   = False
-		restoreAllPlugins = False
-		restoreSettingsnoPlugin = False
-		if answer is not None:
-			if answer[1] == "restoresettings":
-				restoreSettings   = True
-			if answer[1] == "restoresettingsnoplugin":
-				restoreSettings = True
-				restoreSettingsnoPlugin = True
-			if answer[1] == "restoresettingsandallplugins":
-				restoreSettings   = True
-				restoreAllPlugins = True
-			if restoreSettings:
-				self.SaveEPG()
-			if answer[1] != "abort":
-				if restoreSettings:
-					try:
-						os.system('mkdir -p /media/hdd/images/config')
-						os.system('touch /media/hdd/images/config/settings')
-					except:
-						print "postFlashActionCallback: failed to create /media/hdd/images/config/settings"
-				else:
-					if os.path.exists('/media/hdd/images/config/settings'):
-						os.system('rm -f /media/hdd/images/config/settings')
-				if restoreAllPlugins:
-					try:
-						os.system('mkdir -p /media/hdd/images/config')
-						os.system('touch /media/hdd/images/config/plugins')
-					except:
-						print "postFlashActionCallback: failed to create /media/hdd/images/config/plugins"
-				else:
-					if os.path.exists('/media/hdd/images/config/plugins'):
-						os.system('rm -f /media/hdd/images/config/plugins')
-				if restoreSettingsnoPlugin:
-					try:
-						os.system('mkdir -p /media/hdd/images/config')
-						os.system('touch /media/hdd/images/config/noplugins')
-					except:
-						print "postFlashActionCallback: failed to create /media/hdd/images/config/noplugins"
-				else:
-					if os.path.exists('/media/hdd/images/config/noplugins'):
-						os.system('rm -f /media/hdd/images/config/noplugins')
-				if self.flashWithPostFlashActionMode == 'online':
-					self.unzip_image(self.filename, flashPath)
-				else:
-					self.startInstallLocalCB()
-			else:
-				self.show()
+			self.unzip_image(self.filename, flashPath)
 		else:
 			self.show()
 
@@ -382,23 +351,41 @@ class doFlashImage(Screen):
 				text = _("Flashing: ")
 				if self.simulate:
 					text += _("Simulate (no write)")
-					cmd = "%s -n -r -k %s > /dev/null 2>&1" % (ofgwritePath, flashTmp)
+					if SystemInfo["HaveMultiBoot"]:
+						cmdlist.append("%s -n -r -k -m%s %s > /dev/null 2>&1" % (ofgwritePath, self.multi, flashTmp))
+					else:
+						cmdlist.append("%s -n -r -k %s > /dev/null 2>&1" % (ofgwritePath, flashTmp))
 					self.close()
 					message = "echo -e '\n"
 					message += _('Show only found image and mtd partitions.\n')
 					message += "'"
 				else:
 					text += _("root and kernel")
-					cmd = "%s -r -k %s > /dev/null 2>&1" % (ofgwritePath, flashTmp)
+					if SystemInfo["HaveMultiBoot"]:
+						if not self.List == "STARTUP":
+							os.system('mkfs.ext4 -F ' + self.devrootfs)
+						cmdlist.append("%s -r -k -m%s %s > /dev/null 2>&1" % (ofgwritePath, self.multi, flashTmp))
+						if not self.List == "STARTUP":
+							cmdlist.append("umount -fl /oldroot_bind")
+							cmdlist.append("umount -fl /newroot")
+					else:
+						cmdlist.append("%s -r -k %s > /dev/null 2>&1" % (ofgwritePath, flashTmp))
 					message = "echo -e '\n"
-					message += _('ofgwrite will stop enigma2 now to run the flash.\n')
-					message += _('Your %s %s will freeze during the flashing process.\n') % (getMachineBrand(), getMachineName())
-					message += _('Please: DO NOT reboot your %s %s and turn off the power.\n') % (getMachineBrand(), getMachineName())
-					message += _('The image or kernel will be flashing and auto booted in few minutes.\n')
-					if self.box() == 'gb800solo':
-						message += _('GB800SOLO takes about 20 mins !!\n')
+					if not self.List == "STARTUP" and SystemInfo["HaveMultiBoot"]:
+						message += _('ofgwrite flashing ready.\n')
+						message += _('please press exit to go back to the menu.\n')
+					else:
+						message += _('ofgwrite will stop enigma2 now to run the flash.\n')
+						message += _('Your STB will freeze during the flashing process.\n')
+						message += _('Please: DO NOT reboot your STB and turn off the power.\n')
+						message += _('The image or kernel will be flashing and auto booted in few minutes.\n')
+						if self.box() == 'gb800solo':
+							message += _('GB800SOLO takes about 20 mins !!\n')
 					message += "'"
-				self.session.open(Console, text,[message, cmd])
+					cmdlist.append(message)
+					self.session.open(Console, title = text, cmdlist = cmdlist, finishedCallback = self.quit, closeOnSuccess = False)
+					if not self.List == "STARTUP":
+						self.close()
 
 	def prepair_flashtmp(self, tmpPath):
 		if os.path.exists(flashTmp):
@@ -463,17 +450,15 @@ class doFlashImage(Screen):
 
 	def layoutFinished(self):
 		box = self.box()
-		brand = getMachineBrand()
 		self.imagelist = []
 		if self.Online:
 			self["key_yellow"].setText("")
 			self.feedurl = images[self.imagesCounter][1]
 			self["key_blue"].setText(images[self.imagesCounter][0])
 			if self.imagesCounter == 0:
-				url = '%s/%s/%s/' % (self.feedurl,brand,box)
+				url = '%s' % (self.feedurl)
 			else:
-				url = '%s/%s/%s/' % (self.feedurl,brand,box)
-			print "URL:", url
+				url = '%s/%s' % (self.feedurl,box)
 			req = urllib2.Request(url)
 			try:
 				response = urllib2.urlopen(req)
@@ -490,9 +475,8 @@ class doFlashImage(Screen):
 
 			lines = the_page.split('\n')
 			tt = len(box)
-			b = len(brand)
 			for line in lines:
-				if line.find("-") > -1:
+				if line.find(box + "-") > -1:
 					t = line.find('<a href="')
 					if line.find('zip"') > -1:
 						e = line.find('zip"')
