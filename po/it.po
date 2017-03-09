@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: enigma2\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2013-05-19 23:44+0100\n"
-"PO-Revision-Date: 2017-03-04 23:25+0100\n"
+"PO-Revision-Date: 2017-03-09 21:34+0100\n"
 "Last-Translator: Opendroid-Team <opendroid2013@gmail.com>\n"
 "Language-Team: Gimsy & Formiano\n"
 "Language: it\n"
@@ -14749,6 +14749,21 @@ msgstr "Proteggere menù standby"
 
 msgid "Protect timer menu"
 msgstr "Proteggere menu Timer"
+
+msgid "Setup Subtitle"
+msgstr "Untertitel Einstellungen"
+
+msgid "Image started:\t%s"
+msgstr "Image Start:\t%s"
+
+msgid "Local"
+msgstr "Locale"
+
+msgid "Multiboot Select"
+msgstr "Seleziona Multiboot"
+
+msgid "MultiBoot Selector"
+msgstr "Selettore MultiBoot"
 
 msgid "SCPC optimized search range"
 msgstr "SCPC area di ricerca ottimizzata"
