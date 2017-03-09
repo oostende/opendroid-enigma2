@@ -41,11 +41,11 @@ class About(Screen):
 			})
 
 	def populate(self):
-		self["lab1"] = StaticText(_("openHDF by HDF Image Team"))
-		self["lab2"] = StaticText(_("Support at") + " www.HDFreaks.cc")
+		self["lab1"] = StaticText(_("openDroid by OPD Image Team"))
+		self["lab2"] = StaticText(_("Support at") + " www.droidsat.org")
 		model = None
 		AboutText = ""
-		self["lab2"] = StaticText(_("Support @") + " www.hdfreaks.cc")
+		self["lab2"] = StaticText(_("Support @") + " www.droidsat.org")
 		AboutText += _("Model:\t%s %s\n") % (getMachineBrand(), getMachineName())
 		#AboutText += _("Boxtype:\t%s\n") % getBoxType()
 

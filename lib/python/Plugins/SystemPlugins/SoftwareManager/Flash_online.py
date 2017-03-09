@@ -536,9 +536,10 @@ class doFlashImage(Screen):
 			self.feedurl = images[self.imagesCounter][1]
 			self["key_blue"].setText(images[self.imagesCounter][0])
 			if self.imagesCounter == 0:
-				url = '%s' % (self.feedurl)
+				url = '%s/%s/%s/' % (self.feedurl,brand,box)
 			else:
-				url = '%s/%s' % (self.feedurl,box)
+				url = '%s/%s/%s/' % (self.feedurl,brand,box)
+			print "URL:", url
 			req = urllib2.Request(url)
 			try:
 				response = urllib2.urlopen(req)
