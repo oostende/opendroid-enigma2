@@ -13,13 +13,102 @@ from boxbranding import getBoxType, getMachineBuild, getMachineBrand, getMachine
 from Components.Pixmap import MultiPixmap
 from Components.Network import iNetwork
 
-from Components.Label import Label
-from Components.ProgressBar import ProgressBar
-
 from Tools.StbHardware import getFPVersion
 
-from os import path, popen
+from os import path
 from re import search
+
+def getAboutText():
+	AboutText = ""
+	AboutText += _("Model:\t%s %s\n") % (getMachineBrand(), getMachineName())
+
+	if path.exists('/proc/stb/info/chipset'):
+		AboutText += _("Chipset:\t%s") % about.getChipSetString() + "\n"
+
+	cpuMHz = ""
+	if getMachineBuild() in ('vusolo4k'):
+		cpuMHz = "   (1,5 GHz)"
+	elif getMachineBuild() in ('formuler1', 'triplex'):
+		cpuMHz = "   (1,3 GHz)"
+	elif getMachineBuild() in ('vuuno4k','vuultimo4k','dm900', 'gb7252', 'dags7252'):
+		cpuMHz = "   (1,7 GHz)"
+	elif getMachineBuild() in ('hd52','hd51','sf4008','vs1500'):
+		try:
+			import binascii
+			f = open('/sys/firmware/devicetree/base/cpus/cpu@0/clock-frequency', 'rb')
+			clockfrequency = f.read()
+			f.close()
+			cpuMHz = "   (%s MHz)" % str(round(int(binascii.hexlify(clockfrequency), 16)/1000000,1))
+		except:
+			cpuMHz = "   (1,7 GHz)"
+	else:
+		if path.exists('/proc/cpuinfo'):
+			f = open('/proc/cpuinfo', 'r')
+			temp = f.readlines()
+			f.close()
+			try:
+				for lines in temp:
+					lisp = lines.split(': ')
+					if lisp[0].startswith('cpu MHz'):
+						#cpuMHz = "   (" +  lisp[1].replace('\n', '') + " MHz)"
+						cpuMHz = "   (" +  str(int(float(lisp[1].replace('\n', '')))) + " MHz)"
+						break
+			except:
+				pass
+
+	AboutText += _("CPU:\t%s") % about.getCPUString() + cpuMHz + "\n"
+	AboutText += _("Cores:\t%s") % about.getCpuCoresString() + "\n"
+
+	AboutText += _("Version:\t%s") % getImageVersion() + "\n"
+	AboutText += _("Build:\t%s") % getImageBuild() + "\n"
+	AboutText += _("Kernel:\t%s") % about.getKernelVersionString() + "\n"
+
+	string = getDriverDate()
+	year = string[0:4]
+	month = string[4:6]
+	day = string[6:8]
+	driversdate = '-'.join((year, month, day))
+	AboutText += _("Drivers:\t%s") % driversdate + "\n"
+
+	AboutText += _("GStreamer:\t%s") % about.getGStreamerVersionString() + "\n"
+	AboutText += _("Python:\t%s") % about.getPythonVersionString() + "\n"
+
+	if getMachineBuild() not in ('hd51','hd52','vusolo4k','vuuno4k','vuultimo4k','sf4008','dm820','dm7080','dm900', 'gb7252', 'dags7252', 'vs1500'):
+		AboutText += _("Installed:\t%s") % about.getFlashDateString() + "\n"
+
+	AboutText += _("Last update:\t%s") % getEnigmaVersionString() + "\n"
+
+	fp_version = getFPVersion()
+	if fp_version is None:
+		fp_version = ""
+	elif fp_version != 0:
+		fp_version = _("Frontprocessor version: %s") % fp_version
+		AboutText += fp_version + "\n"
+
+	tempinfo = ""
+	if path.exists('/proc/stb/sensors/temp0/value'):
+		f = open('/proc/stb/sensors/temp0/value', 'r')
+		tempinfo = f.read()
+		f.close()
+	elif path.exists('/proc/stb/fp/temp_sensor'):
+		f = open('/proc/stb/fp/temp_sensor', 'r')
+		tempinfo = f.read()
+		f.close()
+	if tempinfo and int(tempinfo.replace('\n', '')) > 0:
+		mark = str('\xc2\xb0')
+		AboutText += _("System temperature:\t%s") % tempinfo.replace('\n', '').replace(' ','') + mark + "C\n"
+
+	tempinfo = ""
+	if path.exists('/proc/stb/fp/temp_sensor_avs'):
+		f = open('/proc/stb/fp/temp_sensor_avs', 'r')
+		tempinfo = f.read()
+		f.close()
+	if tempinfo and int(tempinfo.replace('\n', '')) > 0:
+		mark = str('\xc2\xb0')
+		AboutText += _("Processor temperature:\t%s") % tempinfo.replace('\n', '').replace(' ','') + mark + "C\n"
+	AboutLcdText = AboutText.replace('\t', ' ')
+
+	return AboutText, AboutLcdText
 
 class About(Screen):
 	def __init__(self, session):
@@ -34,185 +123,23 @@ class About(Screen):
 				"cancel": self.close,
 				"ok": self.close,
 				"log": self.showAboutReleaseNotes,
-				"blue": self.showMemoryInfo,
 				"up": self["AboutScrollLabel"].pageUp,
 				"down": self["AboutScrollLabel"].pageDown,
 				"green": self.showTranslationInfo,
 			})
 
 	def populate(self):
-		self["lab1"] = StaticText(_("openDroid by OPD Image Team"))
-		self["lab2"] = StaticText(_("Support at") + " www.droidsat.org")
+		self["lab1"] = StaticText(_("Opendroid"))
+		self["lab2"] = StaticText(_("By Opendroid-Team"))
 		model = None
-		AboutText = ""
-		self["lab2"] = StaticText(_("Support @") + " www.droidsat.org")
-		AboutText += _("Model:\t%s %s\n") % (getMachineBrand(), getMachineName())
-		#AboutText += _("Boxtype:\t%s\n") % getBoxType()
+		self["lab3"] = StaticText(_("Support at") + " www.droidsat.org")
 
-		if path.exists('/proc/stb/info/chipset'):
-			AboutText += _("Chipset:\tBCM%s") % about.getChipSetString() + "\n"
-
-		cmd = 'cat /proc/cpuinfo | grep "cpu MHz" -m 1 | awk -F ": " ' + "'{print $2}'"
-		cmd2 = 'cat /proc/cpuinfo | grep "BogoMIPS" -m 1 | awk -F ": " ' + "'{print $2}'"
-		try:
-			res = popen(cmd).read()
-			res2 = popen(cmd2).read()
-		except:
-			res = ""
-			res2 = ""
-		cpuMHz = ""
-
-		bootloader = ""
-		if path.exists('/sys/firmware/devicetree/base/bolt/tag'):
-			f = open('/sys/firmware/devicetree/base/bolt/tag', 'r')
-			bootloader = f.readline().replace('\x00', '').replace('\n', '')
-			f.close()
-		BootLoaderVersion = 0
-		try:
-			if bootloader:
-				AboutText += _("Bootloader:\t%s\n") % (bootloader)
-				BootLoaderVersion = int(bootloader[1:])
-		except:
-			BootLoaderVersion = 0
-
-		if getMachineBuild() in ('vusolo4k'):
-			cpuMHz = "   (1,5 GHz)"
-		elif getMachineBuild() in ('dm900'):
-			cpuMHz = "   (1,7 GHz)"
-		elif getMachineBuild() in ('formuler1', 'triplex'):
-			cpuMHz = "   (1,3 GHz)"
-		elif getMachineBuild() in ('hd52', 'hd51', 'sf4008'):
-			try:
-				import binascii
-				f = open('/sys/firmware/devicetree/base/cpus/cpu@0/clock-frequency', 'rb')
-				clockfrequency = f.read()
-				f.close()
-				cpuMHz = "%s MHz" % str(round(int(binascii.hexlify(clockfrequency), 16)/1000000,1))
-			except:
-				cpuMHz = "1,7 GHz"
-		else:
-			if path.exists('/proc/cpuinfo'):
-				f = open('/proc/cpuinfo', 'r')
-				temp = f.readlines()
-				f.close()
-				try:
-					for lines in temp:
-						lisp = lines.split(': ')
-						if lisp[0].startswith('cpu MHz'):
-							#cpuMHz = "   (" +  lisp[1].replace('\n', '') + " MHz)"
-							cpuMHz = "   (" +  str(int(float(lisp[1].replace('\n', '')))) + " MHz)"
-							break
-				except:
-					pass
-
-		bogoMIPS = ""
-		if res:
-			cpuMHz = "" + res.replace("\n", "") + " MHz"
-		if res2:
-			bogoMIPS = "" + res2.replace("\n", "") 
-
-		if getMachineBuild() in ('vusolo4k', 'hd51', 'hd52', 'sf4008', 'dm900'):
-			AboutText += _("CPU:\t%s") % about.getCPUString() + cpuMHz + "\n"
-		else:
-			AboutText += _("CPU:\t%s") % about.getCPUString() + cpuMHz + "\n"
-		dMIPS = 0
-		if getMachineBuild() in ('vusolo4k'):
-			dMIPS = "10.500"
-		elif getMachineBuild() in ('hd52', 'hd51', 'sf4008', 'dm900'):
-			dMIPS = "12.000"
-		if getMachineBuild() in ('vusolo4k', 'hd51', 'hd52', 'sf4008' , 'dm900'):
-			AboutText += _("DMIPS:\t") + dMIPS + "\n"
-		else:
-			AboutText += _("BogoMIPS:\t%s") % bogoMIPS + "\n"
-		AboutText += _("Cores:\t%s") % about.getCpuCoresString() + "\n"
-		AboutText += _("HDF Version:\tV%s") % getImageVersion() + " - Build # " + getImageBuild() + "\n"
-		AboutText += _("Kernel (Box):\t%s") % about.getKernelVersionString() + " (" + getBoxType() + ")" + "\n"
-		imagestarted = ""
-		bootname = ''
-		if path.exists('/boot/bootname'):
-			f = open('/boot/bootname', 'r')
-			bootname = f.readline().split('=')[1]
-			f.close()
-	
-		if path.exists('/boot/STARTUP'):
-			f = open('/boot/STARTUP', 'r')
-			f.seek(22)
-			image = f.read(1) 
-			f.close()
-			if bootname: bootname = "   (%s)" %bootname 
-			AboutText += _("Image started:\t%s") % "STARTUP_" + image + bootname + "\n"
-		
-		string = getDriverDate()
-		year = string[0:4]
-		month = string[4:6]
-		day = string[6:8]
-		driversdate = '-'.join((year, month, day))
-		AboutText += _("Drivers:\t%s") % driversdate + "\n"
-		AboutText += _("GStreamer:\t%s") % about.getGStreamerVersionString() + "\n"
-		AboutText += _("Last update:\t%s") % getEnigmaVersionString() + " - Build # " + getImageBuild() + "\n"
-		AboutText += _("Flashed:\t%s\n") % about.getFlashDateString()
-		AboutText += _("Python:\t%s\n") % about.getPythonVersionString()
-		AboutText += _("E2 (re)starts:\t%s\n") % config.misc.startCounter.value
-		AboutText += _("Network:")
-		for x in about.GetIPsFromNetworkInterfaces():
-			AboutText += "\t" + x[0] + ": " + x[1] + "\n"
-
-		fp_version = getFPVersion()
-		if fp_version is None:
-			fp_version = ""
-		elif fp_version != 0:
-			fp_version = _("Frontprocessor version: %s") % fp_version
-			AboutText += fp_version + "\n"
-
-		fp_version = getFPVersion()
-		if fp_version is None:
-			fp_version = ""
-		elif fp_version != 0:
-			fp_version = _("Frontprocessor version: %s") % fp_version
-			AboutText += fp_version + "\n"
-
-		tempinfo = ""
-		if path.exists('/proc/stb/sensors/temp0/value'):
-			f = open('/proc/stb/sensors/temp0/value', 'r')
-			tempinfo = f.read()
-			f.close()
-		elif path.exists('/proc/stb/fp/temp_sensor'):
-			f = open('/proc/stb/fp/temp_sensor', 'r')
-			tempinfo = f.read()
-			f.close()
-		elif path.exists('/proc/stb/sensors/temp/value'):
-			f = open('/proc/stb/sensors/temp/value', 'r')
-			tempinfo = f.read()
-			f.close()
-		elif path.exists('/sys/devices/virtual/thermal/thermal_zone0/temp'):
-			if getBoxType() in ('mutant51', 'ax51'):
-				tempinfo = ""
-			else:
-				f = open('/sys/devices/virtual/thermal/thermal_zone0/temp', 'r')
-				tempinfo = f.read()
-				tempinfo = tempinfo[:-4]
-				f.close()
-		if tempinfo and int(tempinfo.replace('\n', '')) > 0:
-			mark = str('\xc2\xb0')
-			AboutText += _("System Temp:\t%s") % tempinfo.replace('\n', '').replace(' ','') + mark + "C\n"
-	
-		tempinfo = ""
-		if path.exists('/proc/stb/fp/temp_sensor_avs'):
-			f = open('/proc/stb/fp/temp_sensor_avs', 'r')
-			tempinfo = f.read()
-			f.close()
-		if tempinfo and int(tempinfo.replace('\n', '')) > 0:
-			mark = str('\xc2\xb0')
-			AboutText += _("CPU Temp:\t%s") % tempinfo.replace('\n', '').replace(' ','') + mark + "C\n"
-		AboutLcdText = AboutText.replace('\t', ' ')
+		AboutText = getAboutText()[0]
 
 		self["AboutScrollLabel"] = ScrollLabel(AboutText)
 
 	def showTranslationInfo(self):
 		self.session.open(TranslationInfo)
-
-	def showMemoryInfo(self):
-		self.session.open(MemoryInfo)
 
 	def showAboutReleaseNotes(self):
 		self.session.open(ViewGitLog)
@@ -305,7 +232,7 @@ class Devices(Screen):
 					freeline = _("Free: ") + _("full")
 				self.list.append(mount + '\t' + sizeline + ' \t' + freeline)
 			else:
-				self.list.append(mount + '\t' + _('Not mounted'))	
+				self.list.append(mount + '\t' + _('Not mounted'))
 
 			list2.append(device)
 		self.list = '\n'.join(self.list)
@@ -320,9 +247,18 @@ class Devices(Screen):
 			self.parts = line.split()
 			if line and self.parts[0] and (self.parts[0].startswith('192') or self.parts[0].startswith('//192')):
 				line = line.split()
-				ipaddress = line[0]
-				mounttotal = line[1]
-				mountfree = line[3]
+				try:
+					ipaddress = line[0]
+				except:
+					ipaddress = ""
+				try:
+					mounttotal = line[1]
+				except:
+					mounttotal = ""
+				try:
+					mountfree = line[3]
+				except:
+					mountfree = ""
 				if self.mountinfo:
 					self.mountinfo += "\n"
 				self.mountinfo += "%s (%sB, %sB %s)" % (ipaddress, mounttotal, mountfree, _("free"))
@@ -349,8 +285,6 @@ class SystemMemoryInfo(Screen):
 			{
 				"cancel": self.close,
 				"ok": self.close,
-				"up": self["AboutScrollLabel"].pageUp,
-				"down": self["AboutScrollLabel"].pageDown,
 			})
 
 		out_lines = file("/proc/meminfo").readlines()
@@ -610,35 +544,10 @@ class SystemNetworkInfo(Screen):
 
 class AboutSummary(Screen):
 	def __init__(self, session, parent):
-		Screen.__init__(self, session, parent = parent)
+		Screen.__init__(self, session, parent=parent)
 		self["selected"] = StaticText("Opendroid:" + getImageVersion())
 
-		AboutText = _("Model: %s %s\n") % (getMachineBrand(), getMachineName())
-
-		if path.exists('/proc/stb/info/chipset'):
-			chipset = open('/proc/stb/info/chipset', 'r').read()
-			AboutText += _("Chipset: BCM%s") % chipset.replace('\n','') + "\n"
-
-		AboutText += _("Version: %s") % getImageVersion() + "\n"
-		AboutText += _("Build: %s") % getImageVersion() + "\n"
-		AboutText += _("Kernel: %s") % about.getKernelVersionString() + "\n"
-
-		string = getDriverDate()
-		year = string[0:4]
-		month = string[4:6]
-		day = string[6:8]
-		driversdate = '-'.join((year, month, day))
-		AboutText += _("Drivers: %s") % driversdate + "\n"
-		AboutText += _("Last update: %s") % getEnigmaVersionString()
-
-		tempinfo = ""
-		if path.exists('/proc/stb/sensors/temp0/value'):
-			tempinfo = open('/proc/stb/sensors/temp0/value', 'r').read()
-		elif path.exists('/proc/stb/fp/temp_sensor'):
-			tempinfo = open('/proc/stb/fp/temp_sensor', 'r').read()
-		if tempinfo and int(tempinfo.replace('\n', '')) > 0:
-			mark = str('\xc2\xb0')
-			AboutText += _("Temperature: %s") % tempinfo.replace('\n', '') + mark + "C"
+		AboutText = getAboutText()[1]
 
 		self["AboutText"] = StaticText(AboutText)
 
@@ -646,20 +555,19 @@ class ViewGitLog(Screen):
 	def __init__(self, session, args=None):
 		Screen.__init__(self, session)
 		self.skinName = "SoftwareUpdateChanges"
-		self.setTitle(_("OpenDroid E2 Changes"))
-		self.logtype = 'e2'
+		self.setTitle(_("OE Changes"))
+		self.logtype = 'oe'
 		self["text"] = ScrollLabel()
 		self['title_summary'] = StaticText()
 		self['text_summary'] = StaticText()
 		self["key_red"] = Button(_("Close"))
 		self["key_green"] = Button(_("OK"))
-		self["key_yellow"] = Button(_("Last Image Updates"))
+		self["key_yellow"] = Button(_("Show E2 Log"))
 		self["myactions"] = ActionMap(['ColorActions', 'OkCancelActions', 'DirectionActions'],
 		{
 			'cancel': self.closeRecursive,
 			'green': self.closeRecursive,
 			"red": self.closeRecursive,
-			"blue": self.showMemoryInfo,
 			"yellow": self.changelogtype,
 			"left": self.pageUp,
 			"right": self.pageDown,
@@ -670,16 +578,12 @@ class ViewGitLog(Screen):
 
 	def changelogtype(self):
 		if self.logtype == 'e2':
-			self["key_yellow"].setText(_("Show OE-A Log"))
-			self.setTitle(_("Last Image Updates"))
-			self.logtype = 'last-upgrades'
-		elif self.logtype == 'last-upgrades':
-			self["key_yellow"].setText(_("Show OpenDroid Log"))
-			self.setTitle(_("OE-A Changes"))
+			self["key_yellow"].setText(_("Show E2 Log"))
+			self.setTitle(_("OE Changes"))
 			self.logtype = 'oe'
-		elif self.logtype == 'oe':
-			self["key_yellow"].setText(_("Show Last Updates"))
-			self.setTitle(_("OpenDroid E2 Changes"))
+		else:
+			self["key_yellow"].setText(_("Show OE Log"))
+			self.setTitle(_("Enigma2 Changes"))
 			self.logtype = 'e2'
 		self.getlog()
 
@@ -690,24 +594,22 @@ class ViewGitLog(Screen):
 		self["text"].pageDown()
 
 	def getlog(self):
+		fd = open('/etc/' + self.logtype + '-git.log', 'r')
+		releasenotes = fd.read()
+		fd.close()
+		releasenotes = releasenotes.replace('\nOpendroid: build', "\n\nOpendroid: build")
+		self["text"].setText(releasenotes)
+		summarytext = releasenotes
 		try:
-			fd = open('/etc/' + self.logtype + '-git.log', 'r')
-			releasenotes = fd.read()
-			fd.close()
-			releasenotes = releasenotes.replace('\nopendroid: build',"\n\n")
-			self["text"].setText(releasenotes)
-			summarytext = releasenotes
-		except:
-			print "there is a problem with reading log file"
-		try:
-			self['title_summary'].setText(summarytext[0] + ':')
-			self['text_summary'].setText(summarytext[1])
+			if self.logtype == 'e2':
+				self['title_summary'].setText(_("E2 Log"))
+				self['text_summary'].setText(_("Enigma2 Changes"))
+			else:
+				self['title_summary'].setText(_("OE Log"))
+				self['text_summary'].setText(_("OE Changes"))
 		except:
 			self['title_summary'].setText("")
 			self['text_summary'].setText("")
-
-	def showMemoryInfo(self):
-		self.session.open(MemoryInfo)
 
 	def unattendedupdate(self):
 		self.close((_("Unattended upgrade without GUI and reboot system"), "cold"))
@@ -737,6 +639,7 @@ class TranslationInfo(Screen):
 			infomap[type] = value
 		print infomap
 
+		self["key_red"] = Button(_("Cancel"))
 		self["TranslationInfo"] = StaticText(info)
 
 		translator_name = infomap.get("Language-Team", "none")
@@ -750,90 +653,3 @@ class TranslationInfo(Screen):
 				"cancel": self.close,
 				"ok": self.close,
 			})
-
-class MemoryInfo(Screen):
-
-	skin = """<screen name="MemoryInfo" position="center,60" zPosition="2" size="540,490" title="Memory Info">
-			<ePixmap pixmap="skin_default/buttons/red.png" position="0,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="skin_default/buttons/green.png" position="135,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="skin_default/buttons/yellow.png" position="270,0" size="140,40" alphatest="on" />
-			<ePixmap pixmap="skin_default/buttons/blue.png" position="405,0" size="140,40" alphatest="on" />
-			<widget name="key_red" position="0,0" zPosition="1" size="135,40" font="Regular;20" halign="center" valign="center" backgroundColor="#9f1313" transparent="1" />
-			<widget name="key_green" position="135,0" zPosition="1" size="135,40" font="Regular;20" halign="center" valign="center" backgroundColor="#1f771f" transparent="1" />
-			<widget name="key_blue" position="405,0" zPosition="1" size="135,40" font="Regular;20" halign="center" valign="center" backgroundColor="#18188b" transparent="1" />
-
-			<widget name="lmemtext" position="10,40" size="120,450" font="Regular;16" zPosition="1" halign="left" transparent="1" />
-			<widget name="lmemvalue" position="120,40" size="90,450" font="Regular;16" zPosition="1" halign="right" transparent="1" />
-			<widget name="rmemtext" position="330,40" size="120,450" font="Regular;16" zPosition="1" halign="left" transparent="1" />
-			<widget name="rmemvalue" position="440,40" size="90,450" font="Regular;16" zPosition="1" halign="right" transparent="1" />
-
-			<widget name="info" position="330,405" size="200,100" font="Regular;14" zPosition="1" halign="center" foregroundColor="#909090" transparent="1" />
-		</screen>"""
-
-	def __init__(self, session):
-		Screen.__init__(self, session)
-
-		self["actions"] = ActionMap(["SetupActions", "ColorActions"],
-			{
-				"cancel": self.close,
-				"ok": self.getMemoryInfo,
-				"green": self.getMemoryInfo,
-				"blue": self.clearMemory,
-			})
-
-		self["key_red"] = Label(_("Cancel"))
-		self["key_green"] = Label(_("Refresh"))
-		self["key_blue"] = Label(_("Clear"))
-
-		self['lmemtext'] = Label()
-		self['lmemvalue'] = Label()
-		self['rmemtext'] = Label()
-		self['rmemvalue'] = Label()
-
-		self['pfree'] = Label()
-		self['pused'] = Label()
-		self["slide"] = ProgressBar()
-		self["slide"].setValue(100)
-
-		self['info'] = Label(_("This info is for developers only.\nFor a normal users it is not important."))
-
-		self.setTitle(_("Memory Info"))
-		self.onLayoutFinish.append(self.getMemoryInfo)
-
-	def getMemoryInfo(self):
-		try:
-			ltext = rtext = ""
-			lvalue = rvalue = ""
-			mem = 0
-			free = 0
-			i = 0
-			for line in open('/proc/meminfo','r'):
-				( name, size, units ) = line.strip().split()
-				if name.find("MemTotal") != -1:
-					mem = int(size)
-				if name.find("MemFree") != -1:
-					free = int(size)
-				if i < 28:
-					ltext += "".join((name,"\n"))
-					lvalue += "".join((size," ",units,"\n"))
-				else:
-					rtext += "".join((name,"\n"))
-					rvalue += "".join((size," ",units,"\n"))
-				i += 1
-			self['lmemtext'].setText(ltext)
-			self['lmemvalue'].setText(lvalue)
-			self['rmemtext'].setText(rtext)
-			self['rmemvalue'].setText(rvalue)
-
-			self["slide"].setValue(int(100.0*(mem-free)/mem+0.25))
-			self['pfree'].setText("%.1f %s" % (100.*free/mem,'%'))
-			self['pused'].setText("%.1f %s" % (100.*(mem-free)/mem,'%'))
-
-		except Exception, e:
-			print "[About] getMemoryInfo FAIL:", e
-
-	def clearMemory(self):
-		from os import system
-		system("sync")
-		system("echo 3 > /proc/sys/vm/drop_caches")
-		self.getMemoryInfo()

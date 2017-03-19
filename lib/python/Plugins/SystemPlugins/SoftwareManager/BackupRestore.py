@@ -38,12 +38,12 @@ def InitConfig():
 		config.plugins.configurationbackup.backuplocation = ConfigText(default = '/media/hdd/', visible_width = 50, fixed_size = False)
 	config.plugins.configurationbackup.backupdirs_default = NoSave(ConfigLocations(default=[eEnv.resolve('${sysconfdir}/enigma2/'),
 		'/etc/CCcam.cfg', '/usr/keys',
-		'/etc/tuxbox/config/', '/etc/auto.network', '/etc/feeds.xml', '/etc/machine-id', 
-		'/etc/openvpn/', '/etc/ipsec.conf', '/etc/ipsec.secrets', '/etc/ipsec.user', '/etc/strongswan.conf', 
+		'/etc/tuxbox/config/', '/etc/auto.network', '/etc/machine-id', 
+		'/etc/openvpn/',  
 		'/etc/dropbear/', '/etc/default/dropbear', '/home/root/', '/etc/samba/', '/etc/fstab', '/etc/inadyn.conf', 
 		'/etc/network/interfaces', '/etc/wpa_supplicant.conf', '/etc/wpa_supplicant.ath0.conf', '/etc/opkg/secret-feed.conf',
-		'/etc/wpa_supplicant.wlan0.conf', '/etc/resolv.conf', '/etc/default_gw', '/etc/hostname', '/etc/epgimport/', '/etc/exports',
-		'/etc/cron/crontabs/root', '/etc/cron/root', '/etc/enigmalight.conf', '/etc/volume.xml', '/etc/enigma2/ci_auth_slot_0.bin', '/etc/enigma2/ci_auth_slot_1.bin',
+		'/etc/wpa_supplicant.wlan0.conf', '/etc/resolv.conf', '/etc/hostname', '/etc/epgimport/',
+		'/etc/cron/crontabs/root', '/etc/cron/root', 
 		eEnv.resolve("${datadir}/enigma2/keymap.usr")]\
 		+eEnv_resolve_multi('/usr/bin/*cam*')\
 		+eEnv_resolve_multi('/etc/*.emu')\
@@ -330,7 +330,6 @@ class RestoreMenu(Screen):
 	def setWindowTitle(self):
 		self.setTitle(_("Restore backups"))
 
-
 	def fill_list(self):
 		self.flist = []
 		self.path = getBackupPath()
@@ -449,7 +448,6 @@ class RestoreScreen(Screen, ConfigListScreen):
 			self.userRestoreScript()
 
 	def userRestoreScript(self, ret = None):
-		
 		SH_List = []
 		SH_List.append('/media/hdd/images/config/myrestore.sh')
 		SH_List.append('/media/usb/images/config/myrestore.sh')
@@ -460,26 +458,19 @@ class RestoreScreen(Screen, ConfigListScreen):
 			if path.exists(SH):
 				startSH = SH
 				break
-
+		
 		if startSH:
-			self.session.openWithCallback(self.restoreMetrixSkin, Console, title = _("Running Myrestore script, Please wait ..."), cmdlist = [startSH], closeOnSuccess = True)
+			self.session.openWithCallback(self.restartGUI, Console, title = _("Running Myrestore script, Please wait ..."), cmdlist = [startSH], closeOnSuccess = True)
 		else:
-			self.restoreMetrixSkin()
-
-	def restartGUI(self, ret = None):
-		self.session.open(Console, title = _("Your %s %s will Restart...")% (getMachineBrand(), getMachineName()), cmdlist = ["killall -9 enigma2"])
-
-	def rebootSYS(self, ret = None):
-		try:
-			f = open("/tmp/rebootSYS.sh","w")
-			f.write("#!/bin/bash\n\nkillall -9 enigma2\nreboot\n")
-			f.close()
-			self.session.open(Console, title = _("Your %s %s will Reboot...")% (getMachineBrand(), getMachineName()), cmdlist = ["chmod +x /tmp/rebootSYS.sh", "/tmp/rebootSYS.sh"])
-		except:
 			self.restartGUI()
 
-class RestartNetwork(Screen):
+	def restartGUI(self, ret = None):
+		self.session.open(Console, title = _("Your %s %s will Reboot...")% (getMachineBrand(), getMachineName()), cmdlist = ["killall -9 enigma2"])
 
+	def runAsync(self, finished_cb):
+		self.doRestore()
+
+class RestartNetwork(Screen):
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		skin = """
@@ -587,9 +578,27 @@ class installedPlugins(Screen):
 		self.close()
 
 class RestorePlugins(Screen):
-
 	def __init__(self, session, menulist):
 		Screen.__init__(self, session)
+		skin = """
+		        <screen name="RestorePlugins" position="center,center" size="650,500" title="Restore Plugins">
+		        <widget source="menu" render="Listbox" position="12,12" size="627,416" scrollbarMode="showOnDemand">
+		        	<convert type="TemplatedMultiContent">
+		        		{"template": [
+		        		MultiContentEntryText(pos = (50,7), size = (590,60), flags = RT_HALIGN_LEFT, text = 0),
+		        		MultiContentEntryPixmapAlphaBlend(pos = (10,7), size = (50,40), png = 1),
+		        		],
+		        		"fonts": [gFont("Regular",22)],
+		        		"itemHeight":40
+		        		}
+		        	</convert>
+		        </widget>
+		        <ePixmap pixmap="skin_default/buttons/red.png" position="162,448" size="138,40" alphatest="blend" />
+		        <ePixmap pixmap="skin_default/buttons/green.png" position="321,448" size="138,40" alphatest="blend" />
+		        <widget name="key_red" position="169,455" size="124,26" zPosition="1" font="Regular;17" halign="center" transparent="1" />
+		        <widget name="key_green" position="329,455" size="124,26" zPosition="1" font="Regular;17" halign="center" transparent="1" />
+		        </screen>"""
+		self.skin = skin        
 		Screen.setTitle(self, _("Restore Plugins"))
 		self.index = 0
 		self.list = menulist
