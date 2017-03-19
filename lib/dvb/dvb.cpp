@@ -37,7 +37,7 @@ eDVBAllocatedFrontend::eDVBAllocatedFrontend(eDVBRegisteredFrontend *fe): m_fe(f
 		eFBCTunerManager* fbcmng = eFBCTunerManager::getInstance();
 		if (fbcmng)
 		{
-			fbcmng->unset(m_fe);
+			fbcmng->unLink(m_fe);
 		}
 	}
 }
@@ -352,6 +352,7 @@ eDVBUsbAdapter::eDVBUsbAdapter(int nr)
 	pumpThread = 0;
 
 	int num_fe = 0;
+
 	demuxFd = vtunerFd = pipeFd[0] = pipeFd[1] = -1;
 
 	/* we need to know exactly what frontend is internal or initialized! */
