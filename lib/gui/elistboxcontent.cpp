@@ -254,7 +254,6 @@ void eListboxPythonStringContent::paint(gPainter &painter, eWindowStyle &style, 
 				else if (local_style->m_halign == eListboxStyle::alignBlock)
 					flags |= gPainter::RT_HALIGN_BLOCK;
 			}
-
 			painter.renderText(eRect(text_offset, m_itemsize),
 			 string, flags, border_color, border_size);
 		}
@@ -433,7 +432,6 @@ void eListboxPythonConfigContent::paint(gPainter &painter, eWindowStyle &style, 
 					/* convert type to string */
 				ePyObject type = PyTuple_GET_ITEM(value, 0);
 				const char *atype = (type && PyString_Check(type)) ? PyString_AsString(type) : 0;
-
 				if (atype)
 				{
 					if (!strcmp(atype, "text"))
@@ -445,7 +443,6 @@ void eListboxPythonConfigContent::paint(gPainter &painter, eWindowStyle &style, 
 						para->setFont(fnt2);
 						para->renderString(value);
 						valueWidth = para->getBoundBox().width();
-
 						painter.setFont(fnt2);
 						ePoint text_offset = textoffset;
 

@@ -17,6 +17,7 @@ service_libenigma_service_a_SOURCES = \
 	service/servicehdmi.cpp \
 	service/servicepeer.cpp \
 	service/servicets.cpp \
+	service/servicewebts.cpp
 
 serviceincludedir = $(pkgincludedir)/lib/service
 serviceinclude_HEADERS = \
@@ -34,6 +35,7 @@ serviceinclude_HEADERS = \
 	service/servicehdmi.h \
 	service/servicepeer.h \
 	service/servicets.h \
+	service/servicewebts.h
 
 if HAVE_LIBXINE
 service_libenigma_service_a_SOURCES += \
