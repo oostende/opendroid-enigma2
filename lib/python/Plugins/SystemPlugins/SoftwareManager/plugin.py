@@ -1572,6 +1572,7 @@ class UpdatePlugin(Screen):
 		        self.runUpgrade(True)
 		else:
 			if doUpdate:
+				# Ask for Update, 
 				message += _("Do you want to update your %s %s?") % (getMachineBrand(), getMachineName()) + "\n" + _("After pressing OK, please wait!")
 				self.session.openWithCallback(self.runUpgrade, MessageBox, message, default = default, picon = picon)
 			else:
@@ -1697,7 +1698,8 @@ class UpdatePlugin(Screen):
 			if self.packages != 0 and self.error == 0:
 				if fileExists("/etc/enigma2/.removelang"):
 					language.delLanguage()
-				self.session.openWithCallback(self.exitAnswer, MessageBox, _("Upgrade finished.") +" "+_("Do you want to reboot your %s %s?") % (getMachineBrand(), getMachineName()))
+				#self.session.openWithCallback(self.exitAnswer, MessageBox, _("Upgrade finished.") +" "+_("Do you want to reboot your %s %s?") % (getMachineBrand(), getMachineName()))
+ #				self.restoreoDreamy()
 			else:
 				self.close()
 		else:
@@ -2224,6 +2226,7 @@ class IpkgInstaller(Screen):
 
 		self.list = SelectionList()
 		self["list"] = self.list
+
 		p = 0
 		if len(list):
 			p = list[0].rfind("/")
@@ -2295,6 +2298,7 @@ class ShowUpdatePackages(Screen, NumericalTextInput):
 				</convert>
 			</widget>
 		</screen>"""
+		
 	def __init__(self, session, plugin_path, args = None):
 		Screen.__init__(self, session)
 		NumericalTextInput.__init__(self)
@@ -2321,6 +2325,7 @@ class ShowUpdatePackages(Screen, NumericalTextInput):
 			"9": self.keyNumberGlobal,
 			"0": self.keyNumberGlobal
 		}, -1)
+		
 		self.list = []
 		self.statuslist = []
 		self["list"] = List(self.list)
@@ -2341,10 +2346,12 @@ class ShowUpdatePackages(Screen, NumericalTextInput):
 			keyvalue = key.encode("utf-8")
 			if len(keyvalue) == 1:
 				self.setNextIdx(keyvalue[0])
+		
 	def keyGotAscii(self):
 		keyvalue = unichr(getPrevAsciiCode()).encode("utf-8")
 		if len(keyvalue) == 1:
 			self.setNextIdx(keyvalue[0])
+		
 	def setNextIdx(self,char):
 		if char in ("0", "1", "a"):
 			self["list"].setIndex(0)
@@ -2363,6 +2370,7 @@ class ShowUpdatePackages(Screen, NumericalTextInput):
 		rcinput = eRCInput.getInstance()
 		rcinput.setKeyboardMode(rcinput.kmNone)
 		self.close()
+			
 	def setWindowTitle(self):
 		self.setTitle(_("New Packages"))
 
@@ -2390,6 +2398,7 @@ class ShowUpdatePackages(Screen, NumericalTextInput):
 			self.buildPacketList()
 
 		pass
+	
 	def buildEntryComponent(self, name, version, description, state):
 		divpng = LoadPixmap(cached=True, path=resolveFilename(SCOPE_CURRENT_SKIN, "skin_default/div-h.png"))
 		if not description:
@@ -2423,6 +2432,7 @@ class ShowUpdatePackages(Screen, NumericalTextInput):
 						self.list.append(self.buildEntryComponent(x[0], '', 'no valid architecture, ignoring !!', "installable"))
 
 			self['list'].setList(self.list)
+	
 		else:
 			self.setStatus('error')
 

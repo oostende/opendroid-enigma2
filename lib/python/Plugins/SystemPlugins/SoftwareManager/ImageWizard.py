@@ -118,6 +118,7 @@ class ImageWizard(WizardLanguage, Rc):
 		#Screen.setTitle(self, _("Welcome..."))
 		Screen.setTitle(self, _("ImageWizard"))
 		self.selectedDevice = None
+
 	def markDone(self):
 		pass
 
@@ -134,8 +135,10 @@ class ImageWizard(WizardLanguage, Rc):
 
 	def deviceSelectionMade(self, index):
 		self.deviceSelect(index)
+
 	def deviceSelectionMoved(self):
 		self.deviceSelect(self.selection)
+
 	def deviceSelect(self, device):
 		self.selectedDevice = device
 		config.plugins.configurationbackup.backuplocation.setValue(self.selectedDevice)

@@ -330,6 +330,7 @@ class RestoreMenu(Screen):
 	def setWindowTitle(self):
 		self.setTitle(_("Restore backups"))
 
+
 	def fill_list(self):
 		self.flist = []
 		self.path = getBackupPath()
@@ -467,10 +468,17 @@ class RestoreScreen(Screen, ConfigListScreen):
 	def restartGUI(self, ret = None):
 		self.session.open(Console, title = _("Your %s %s will Reboot...")% (getMachineBrand(), getMachineName()), cmdlist = ["killall -9 enigma2"])
 
-	def runAsync(self, finished_cb):
-		self.doRestore()
+	def rebootSYS(self, ret = None):
+		try:
+			f = open("/tmp/rebootSYS.sh","w")
+			f.write("#!/bin/bash\n\nkillall -9 enigma2\nreboot\n")
+			f.close()
+			self.session.open(Console, title = _("Your %s %s will Reboot...")% (getMachineBrand(), getMachineName()), cmdlist = ["chmod +x /tmp/rebootSYS.sh", "/tmp/rebootSYS.sh"])
+		except:
+			self.restartGUI()
 
 class RestartNetwork(Screen):
+
 	def __init__(self, session):
 		Screen.__init__(self, session)
 		skin = """
