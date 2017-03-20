@@ -1,4 +1,4 @@
-AC_INIT([enigma2],[5.6],[http://www.droidsat.org])
+AC_INIT([enigma2],[6.1],[http://www.droidsat.org])
 AM_INIT_AUTOMAKE([dist-bzip2 no-define tar-pax -Wno-portability])
 AC_CONFIG_HEADERS([enigma2_config.h])
 
@@ -11,6 +11,7 @@ AC_SYS_LARGEFILE
 
 AC_PROG_CC
 AC_PROG_CXX
+AX_CXX_COMPILE_STDCXX_11
 m4_ifdef([LT_INIT], [LT_INIT], [AC_PROG_LIBTOOL])
 AC_CONFIG_MACRO_DIR([m4])
 AC_OPENMP()
@@ -435,7 +436,11 @@ if test "$BOXTYPE" == "dm7080" -o "$BOXTYPE" == "dm820" -o "$BOXTYPE" == "dm800s
 fi
 
 if test "$BOXTYPE" == "vusolo4k" -o "$BOXTYPE" == "vuuno4k" -o "$BOXTYPE" == "vuultimo4k" -o "$BOXTYPE" == "gb7252" -o "$MACHINEBUILD" == "force3uhdplus"; then
-	AC_DEFINE(TUNER_VUSOLO4K, 1,[define BOXTYPE VUSOLO4K])
+	AC_DEFINE(TUNER_FBC, 1,[define HAVE FBC TUNER])
+fi
+
+if test "$BOXTYPE" == "vusolo4k" -o "$BOXTYPE" == "vuuno4k" -o "$BOXTYPE" == "vuultimo4k"; then
+	AC_DEFINE(VMSG_TYPE2, 1,[define vtuner_message type 2])
 fi
 if test "$BOXTYPE" == "azboxme" -o "$BOXTYPE" == "azboxminime"; then
 	AC_DEFINE(FORCE_ADVANCED_REMOTE, 1,[define to fixup the input device identification when the remote control is actually an 'advanced' remote (with play/forward/rewind keys)])
