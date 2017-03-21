@@ -7,6 +7,12 @@
 from OPENDROID.BluePanel import BluePanel
 self.session.open(BluePanel)
 </code>  
+		</item>	
+		<item weight="0" level="1" text="Green Panel" entryID="Green Panel">
+<code>
+from OPENDROID.GreenPanel import GreenPanel
+self.session.open(GreenPanel)
+</code>  
 		</item>
 	<menu weight="1" level="0" text="Setup" flushConfigOnClose="1" entryID="setup_selection" >
 		<id val="setup" />
