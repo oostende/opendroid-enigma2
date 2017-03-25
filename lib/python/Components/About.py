@@ -1,7 +1,6 @@
 from boxbranding import getBoxType, getMachineBuild, getImageVersion
 from sys import modules
 import socket, fcntl, struct, time, os
-
 def getImageVersionString():
 	return getImageVersion()
 
@@ -10,7 +9,10 @@ def getVersionString():
 
 def getFlashDateString():
 	try:
-		return time.strftime(_("%Y-%m-%d"), time.localtime(os.stat("/boot").st_ctime))
+		if path.exists("/boot/STARTUP"):
+			return _("Multiboot active")
+		else:
+			return time.strftime(_("%Y-%m-%d"), time.localtime(os.stat("/boot").st_ctime))
 	except:
 		return _("unknown")
 
