@@ -6,6 +6,7 @@ from Components.Label import Label
 from Components.MovieList import AUDIO_EXTENSIONS, MOVIE_EXTENSIONS, DVD_EXTENSIONS
 from Components.PluginComponent import plugins
 from Components.ServiceEventTracker import ServiceEventTracker
+from Components.Sources.ServiceEvent import ServiceEvent
 from Components.Sources.Boolean import Boolean
 from Components.Sources.List import List
 from Components.config import config, configfile, ConfigBoolean, ConfigClock
@@ -550,6 +551,8 @@ class InfoBarShowHide(InfoBarScreenSaver):
 		self.__state = self.STATE_SHOWN
 		self.__locked = 0
 
+		self.DimmingTimer = eTimer()
+		self.DimmingTimer.callback.append(self.doDimming)
 		self.hideTimer = eTimer()
 		self.hideTimer.callback.append(self.doTimerHide)
 		self.hideTimer.start(5000, True)
@@ -704,18 +707,19 @@ class InfoBarShowHide(InfoBarScreenSaver):
 				self.hideTimer.start(idx*1000, True)
 		elif hasattr(self, "pvrStateDialog"):
 			self.hideTimer.stop()
-			idx = config.usage.infobar_timeout.index
-			if idx:
-				self.hideTimer.start(idx*1000, True)
+			#idx = config.usage.infobar_timeout.index
+			#if idx:
+			#	self.hideTimer.start(idx*1000, True)
 
 	def doShow(self):
 		self.show()
+		self.hideTimer.stop()
+		self.DimmingTimer.stop()
+		self.doWriteAlpha(config.av.osd_alpha.value)
 		self.startHideTimer()
 
 	def doTimerHide(self):
 		self.hideTimer.stop()
-		self.DimmingTimer = eTimer()
-		self.DimmingTimer.callback.append(self.doDimming)
 		self.DimmingTimer.start(300, True)
 		self.dimmed = config.usage.show_infobar_dimming_speed.value
 
@@ -1008,17 +1012,28 @@ class NumberZap(Screen):
 				self.Timer.start(config.usage.numzaptimeout2.value, True)
 		self.numberString += str(number)
 		self["number"].setText(self.numberString)
+		self["servicenumber"].setText(self.numberString)
 		self["number_summary"].setText(self.numberString)
 		self.field = self.numberString
 
 		self.handleServiceName()
 		self["service_summary"].setText(self["servicename"].getText())
+		if config.usage.numzappicon.value:
+			self.showPicon()
 
 		if len(self.numberString) >= int(config.usage.maxchannelnumlen.value):
 			self.keyOK()
 
+	def showPicon(self):
+		self["Service"].newService(self.service)
+
 	def __init__(self, session, number, searchNumberFunction = None):
 		Screen.__init__(self, session)
+
+		if config.usage.numzappicon.value:
+			self.onLayoutFinish.append(self.showPicon)
+			self.skinName = ["NumberZapPicon", "NumberZapWithName"]
+
 		self.onChangedEntry = [ ]
 		self.numberString = str(number)
 		self.field = str(number)
@@ -1029,10 +1044,11 @@ class NumberZap(Screen):
 		self["channel_summary"] = StaticText(_("Channel:"))
 
 		self["number"] = Label(self.numberString)
+		self["servicenumber"] = Label(self.numberString)
 		self["number_summary"] = StaticText(self.numberString)
 		self["servicename"] = Label()
 		self["service_summary"] = StaticText("")
-
+		self["Service"] = ServiceEvent()
 		self.handleServiceName()
 		self["service_summary"].setText(self["servicename"].getText())
 
@@ -2490,6 +2506,8 @@ class InfoBarSeek():
         if self.seekstate != self.SEEK_STATE_EOF:
             self.lastseekstate = self.seekstate
             self.setSeekState(self.SEEK_STATE_PAUSE)
+        else:
+            self.playpauseService()
 
     def unPauseService(self):
         if self.seekstate == self.SEEK_STATE_PLAY:
@@ -3721,6 +3739,10 @@ class InfoBarInstantRecord():
                 self.deleteRecording = True
                 self.stopAllCurrentRecordings(list)
             elif answer[1] in ('indefinitely', 'manualduration', 'manualendtime', 'event'):
+                from Components.About import about
+                if len(list) >= 2 and about.getChipSetString() in ('meson-6', 'meson-64'):
+                    Notifications.AddNotification(MessageBox, _('Sorry only possible to record 2 channels at once'), MessageBox.TYPE_ERROR, timeout=5)
+                    return
                 self.startInstantRecording(limitEvent=answer[1] in ('event', 'manualendtime') or False)
                 if answer[1] == 'manualduration':
                     self.changeDuration(len(self.recording) - 1)
@@ -3854,9 +3876,8 @@ class InfoBarInstantRecord():
                     list += ((_('Stop and delete all current recordings'), 'stopdeleteall'),)
             if self.isTimerRecordRunning():
                 list += ((_('Stop timer recording'), 'timer'),)
-        else:
-            if self.session.nav.getCurrentlyPlayingServiceReference():
-                name = self.session.nav.getCurrentlyPlayingServiceReference().toString().startswith('4097:')
+        elif self.session.nav.getCurrentlyPlayingServiceReference():
+            name = self.session.nav.getCurrentlyPlayingServiceReference().toString().startswith('4097:')
             if name == True:
                 title = _('Start recording?')
                 list = commonVOD
@@ -3865,10 +3886,12 @@ class InfoBarInstantRecord():
                 list = common
             if self.isTimerRecordRunning():
                 list += ((_('Stop timer recording'), 'timer'),)
-        if isStandardInfoBar(self) and self.timeshiftEnabled():
-            list = list + timeshiftcommon
-        if isStandardInfoBar(self):
-            list = list + ((_('Do not record'), 'no'),)
+            if isStandardInfoBar(self) and self.timeshiftEnabled():
+                list = list + timeshiftcommon
+            if isStandardInfoBar(self):
+                list = list + ((_('Do not record'), 'no'),)
+        else:
+            return 0
         if list:
             self.session.openWithCallback(self.recordQuestionCallback, ChoiceBox, title=title, list=list)
         else:
